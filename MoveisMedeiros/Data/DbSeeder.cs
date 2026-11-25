@@ -1,24 +1,21 @@
-﻿using Microsoft.EntityFrameworkCore;
-using MoveisMedeiros.Models;
+﻿using MoveisMedeiros.Models;
 
-namespace MoveisMedeiros.Api.Data;
-
-public static class DbSeeder
+namespace MoveisMedeiros.Data
 {
-    public static async Task SeedAsync(AppDbContext db)
+    public static class DbSeeder
     {
-        if (!await db.Usuarios.AnyAsync())
+        public static void Seed(AppDbContext context)
         {
-            db.Usuarios.Add(new Usuario
+            if (!context.Usuarios.Any())
             {
-                Nome = "Administrador",
-
-                Email = "admin@moveismedeiros.com",
-
-                Senha = "Admin@123"
-            });
-
-            await db.SaveChangesAsync();
+                context.Usuarios.Add(new Usuario
+                {
+                    Nome = "Administrador",
+                    Email = "admin@moveismedeiros.com",
+                    Senha = "123"
+                });
+                context.SaveChanges();
+            }
         }
     }
 }

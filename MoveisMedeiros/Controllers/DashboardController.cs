@@ -1,38 +1,39 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MoveisMedeiros.Api.Data;
+using MoveisMedeiros.Data;
 
-namespace MoveisMedeiros.Api.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-[Authorize]
-public class DashboardController : ControllerBase
+namespace MoveisMedeiros.Controllers
 {
-    private readonly AppDbContext _db;
-
-    public DashboardController(AppDbContext db)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class DashboardController : ControllerBase
     {
-        _db = db;
-    }
+        private readonly AppDbContext _context;
 
-    [HttpGet]
-    public async Task<IActionResult> Resumo()
-    {
-        var obras = await _db.Obras.CountAsync();
-
-        var inspecoes = await _db.Inspecoes.CountAsync();
-
-        var avisos = await _db.ItensInspecao.CountAsync(x =>
-            x.Status == "Inconforme" ||
-            x.Status == "Ajustar");
-
-        return Ok(new
+        public DashboardController(AppDbContext context)
         {
-            obras,
-            vistorias = inspecoes,
-            avisos
-        });
+            _context = context;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetResumo()
+        {
+            var obrasCadastradas = await _context.Obras.CountAsync();
+            var vistoriasRealizadas = await _context.Inspecoes.CountAsync();
+
+            
+            var avisosPendentes = await _context.Inspecoes.CountAsync(i =>
+                i.Montagem != "Conforme" ||
+                i.Acabamento != "Conforme" ||
+                i.Ferragens != "Conforme" ||
+                i.Limpeza != "Conforme");
+
+            return Ok(new
+            {
+                obras = obrasCadastradas,
+                vistorias = vistoriasRealizadas,
+                avisos = avisosPendentes
+            });
+        }
     }
 }

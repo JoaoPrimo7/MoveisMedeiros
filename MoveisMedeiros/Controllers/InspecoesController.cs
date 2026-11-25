@@ -1,124 +1,66 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MoveisMedeiros.Api.Data;
-using MoveisMedeiros.Api.DTOs;
+using MoveisMedeiros.Data;
+using MoveisMedeiros.DTOs;
 using MoveisMedeiros.Models;
 
-namespace MoveisMedeiros.Api.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-[Authorize]
-public class InspecoesController : ControllerBase
+namespace MoveisMedeiros.Controllers
 {
-    private readonly AppDbContext _db;
-
-    public InspecoesController(AppDbContext db)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class InspecoesController : ControllerBase
     {
-        _db = db;
-    }
+        private readonly AppDbContext _context;
 
-    [HttpGet]
-    public async Task<IActionResult> Listar()
-    {
-        var lista = await _db.Inspecoes
-            .Include(x => x.Obra)
-            .Include(x => x.Itens)
-            .OrderByDescending(x => x.DataInspecao)
-            .Select(x => new
-            {
-                x.Id,
-                x.ObraId,
-                Obra = x.Obra!.NomeObra,
-                x.DataInspecao,
-                x.Observacoes,
-                Itens = x.Itens
-            })
-            .ToListAsync();
-
-        return Ok(lista);
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> Criar(InspecaoDto dto)
-    {
-        var obraExiste = await _db.Obras
-            .AnyAsync(x => x.Id == dto.ObraId);
-
-        if (!obraExiste)
+        public InspecoesController(AppDbContext context)
         {
-            return BadRequest(new
-            {
-                mensagem = "Selecione uma obra válida."
-            });
+            _context = context;
         }
 
-        var categoriasPermitidas = new[]
+        [HttpGet]
+        public async Task<IActionResult> ListarHistorico()
         {
-            "Montagem dos móveis",
-            "Acabamento",
-            "Portas e ferragens",
-            "Limpeza do local"
-        };
+            var historico = await _context.Inspecoes
+                .Include(i => i.Obra)
+                .OrderByDescending(i => i.DataInspecao)
+                .Select(i => new
+                {
+                    i.Id,
+                    NomeObra = i.Obra != null ? i.Obra.NomeObra : "Obra removida",
+                    DataInspecao = i.DataInspecao.ToString("dd/MM/yyyy 'às' HH:mm"),
+                    i.Montagem,
+                    i.Acabamento,
+                    i.Ferragens,
+                    i.Limpeza,
+                    i.Observacoes
+                })
+                .ToListAsync();
 
-        var statusPermitidos = new[]
-        {
-            "Conforme",
-            "Inconforme",
-            "Ajustar"
-        };
-
-        if (dto.Itens == null ||
-            dto.Itens.Count != categoriasPermitidas.Length ||
-            dto.Itens.Any(i =>
-                !categoriasPermitidas.Contains(i.Categoria) ||
-                !statusPermitidos.Contains(i.Status)))
-        {
-            return BadRequest(new
-            {
-                mensagem = "Confira os itens e status do checklist."
-            });
+            return Ok(historico);
         }
 
-        var inspecao = new Inspecao
+        [HttpPost]
+        public async Task<IActionResult> SalvarInspecao([FromBody] InspecaoDto dto)
         {
-            ObraId = dto.ObraId,
+            var obraExiste = await _context.Obras.AnyAsync(o => o.Id == dto.ObraId);
+            if (!obraExiste)
+                return NotFound(new { mensagem = "Obra não encontrada." });
 
-            Observacoes = dto.Observacoes?.Trim() ?? "",
-
-            DataInspecao = DateTime.Now,
-
-            Itens = dto.Itens.Select(i => new ItemInspecao
+            var inspecao = new Inspecao
             {
-                Categoria = i.Categoria,
-                Status = i.Status
-            }).ToList()
-        };
+                ObraId = dto.ObraId,
+                DataInspecao = DateTime.Now,
+                Montagem = dto.Montagem,
+                Acabamento = dto.Acabamento,
+                Ferragens = dto.Ferragens,
+                Limpeza = dto.Limpeza,
+                Observacoes = dto.Observacoes
+            };
 
-        _db.Inspecoes.Add(inspecao);
+            _context.Inspecoes.Add(inspecao);
+            await _context.SaveChangesAsync();
 
-        await _db.SaveChangesAsync();
-
-        return CreatedAtAction(
-            nameof(Listar),
-            new { id = inspecao.Id },
-            inspecao
-        );
-    }
-
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Excluir(int id)
-    {
-        var inspecao = await _db.Inspecoes.FindAsync(id);
-
-        if (inspecao == null)
-            return NotFound();
-
-        _db.Inspecoes.Remove(inspecao);
-
-        await _db.SaveChangesAsync();
-
-        return NoContent();
+            return Ok(inspecao);
+        }
     }
 }

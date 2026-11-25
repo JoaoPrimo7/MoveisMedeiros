@@ -1,9 +1,10 @@
-﻿namespace MoveisMedeiros.DTOs;
-
-public class ObraDto
+﻿namespace MoveisMedeiros.DTOs
 {
-    public string NomeCliente { get; set; }
-    public string NomeObra { get; set; }
-    public string Local { get; set; }
-    public DateTime PrazoEntrega { get; set; }
+    public class ObraDto
+    {
+        public string NomeCliente { get; set; } = string.Empty;
+        public string NomeObra { get; set; } = string.Empty;
+        public string LocalObra { get; set; } = string.Empty;
+        public DateTime PrazoEntrega { get; set; }
+    }
 }

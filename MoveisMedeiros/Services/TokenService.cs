@@ -1,54 +1,39 @@
-﻿using Microsoft.IdentityModel.Tokens;
-using MoveisMedeiros.Models;
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.IdentityModel.Tokens;
+using MoveisMedeiros.Models;
 
-
-namespace MoveisMedeiros.Api.Services;
-
-public class TokenService
+namespace MoveisMedeiros.Services
 {
-    private readonly IConfiguration _configuration;
-
-    public TokenService(IConfiguration configuration)
+    public class TokenService
     {
-        _configuration = configuration;
-    }
+        private readonly IConfiguration _config;
 
-    public string GerarToken(Usuario usuario)
-    {
-        // Informações do usuário que ficarão dentro do token
-        var claims = new List<Claim>();
+        public TokenService(IConfiguration config)
+        {
+            _config = config;
+        }
 
-        claims.Add(new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()));
-        claims.Add(new Claim(ClaimTypes.Name, usuario.Nome));
-        claims.Add(new Claim(ClaimTypes.Email, usuario.Email));
+        public string GerarToken(Usuario usuario)
+        {
+            var key = Encoding.ASCII.GetBytes(_config["Jwt:Key"] ?? "ChaveSuperSecretaMoveisMedeiros2026!");
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
+                    new Claim(ClaimTypes.Email, usuario.Email)
+                }),
+                Expires = DateTime.UtcNow.AddHours(8),
+                SigningCredentials = new SigningCredentials(
+                    new SymmetricSecurityKey(key),
+                    SecurityAlgorithms.HmacSha256Signature)
+            };
 
-        // Chave usada para gerar o token
-        var chave = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
-        );
-
-        // Tipo de assinatura do token
-        var credenciais = new SigningCredentials(
-            chave,
-            SecurityAlgorithms.HmacSha256
-        );
-
-        // Tempo de validade do token
-        var validade = DateTime.UtcNow.AddHours(8);
-
-        // Criação do token
-        var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
-            audience: _configuration["Jwt:Audience"],
-            claims: claims,
-            expires: validade,
-            signingCredentials: credenciais
-        );
-
-        // Transforma o token em texto
-        return new JwtSecurityTokenHandler().WriteToken(token);
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+        }
     }
 }

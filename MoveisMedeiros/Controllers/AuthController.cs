@@ -1,64 +1,35 @@
-﻿
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MoveisMedeiros.Api.Data;
-using MoveisMedeiros.Models;
+using MoveisMedeiros.Data;
 using MoveisMedeiros.DTOs;
-namespace AuthController
-{
+using MoveisMedeiros.Services;
 
+namespace MoveisMedeiros.Controllers
+{
     [ApiController]
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly TokenService _tokenService;
 
-        public AuthController(AppDbContext context)
+        public AuthController(AppDbContext context, TokenService tokenService)
         {
             _context = context;
+            _tokenService = tokenService;
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
+        public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-       
             var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.Email.ToLower() == loginDto.Email.ToLower());
+                .FirstOrDefaultAsync(u => u.Email == dto.Email && u.Senha == dto.Senha);
 
-        
-            if (usuario == null || usuario.Senha != loginDto.Senha)
-            {
-                return Unauthorized("Email ou senha inválidos.");
-            }
+            if (usuario == null)
+                return Unauthorized(new { mensagem = "E-mail ou senha inválidos." });
 
-
-            return Ok(new { Email = usuario.Email });
-        }
-
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] Usuario registerDto)
-        {
-   
-            if (await _context.Usuarios.AnyAsync(u => u.Email.ToLower() == registerDto.Email.ToLower()))
-            {
-                return BadRequest("Este Email já está em uso."); 
-            }
-
-            var novoUsuario = new Usuario
-            {
-                Email = registerDto.Email,
-              
-                Senha = registerDto.Senha
-            };
-
-        
-            _context.Usuarios.Add(novoUsuario);
-
-
-            await _context.SaveChangesAsync();
-
-
-            return CreatedAtAction(nameof(Register), new { id = novoUsuario.Id }, new { novoUsuario.Email, novoUsuario.Senha });
+            var token = _tokenService.GerarToken(usuario);
+            return Ok(new { token, usuario = new { usuario.Id, usuario.Nome, usuario.Email } });
         }
     }
 }

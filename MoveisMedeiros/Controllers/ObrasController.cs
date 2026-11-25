@@ -1,124 +1,46 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MoveisMedeiros.Api.Data;
-using MoveisMedeiros.Api.DTOs;
+using MoveisMedeiros.Data;
 using MoveisMedeiros.DTOs;
 using MoveisMedeiros.Models;
 
-namespace MoveisMedeiros.Api.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-[Authorize]
-public class ObrasController : ControllerBase
+namespace MoveisMedeiros.Controllers
 {
-    private readonly AppDbContext _db;
-
-    public ObrasController(AppDbContext db)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ObrasController : ControllerBase
     {
-        _db = db;
-    }
+        private readonly AppDbContext _context;
 
-    [HttpGet]
-    public async Task<IActionResult> Listar()
-    {
-        var obras = await _db.Obras
-            .OrderByDescending(x => x.CriadaEm)
-            .Select(x => new
-            {
-                x.Id,
-                x.NomeCliente,
-                x.NomeObra,
-                x.Local,
-                x.PrazoEntrega,
-                TotalInspecoes = x.Inspecoes.Count
-            })
-            .ToListAsync();
-
-        return Ok(obras);
-    }
-
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> Buscar(int id)
-    {
-        var obra = await _db.Obras
-            .Include(x => x.Inspecoes)
-            .FirstOrDefaultAsync(x => x.Id == id);
-
-        if (obra == null)
-            return NotFound(new
-            {
-                mensagem = "Obra não encontrada."
-            });
-
-        return Ok(obra);
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> Criar(ObraDto dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto.NomeCliente) ||
-            string.IsNullOrWhiteSpace(dto.NomeObra) ||
-            string.IsNullOrWhiteSpace(dto.Local))
+        public ObrasController(AppDbContext context)
         {
-            return BadRequest(new
-            {
-                mensagem = "Preencha cliente, nome da obra e local."
-            });
+            _context = context;
         }
 
-        var obra = new Obra
+        [HttpGet]
+        public async Task<IActionResult> ListarObras()
         {
-            NomeCliente = dto.NomeCliente.Trim(),
-            NomeObra = dto.NomeObra.Trim(),
-            Local = dto.Local.Trim(),
-            PrazoEntrega = dto.PrazoEntrega.Date
-        };
+            var obras = await _context.Obras
+                .OrderByDescending(o => o.Id)
+                .ToListAsync();
+            return Ok(obras);
+        }
 
-        _db.Obras.Add(obra);
+        [HttpPost]
+        public async Task<IActionResult> CadastrarObra([FromBody] ObraDto dto)
+        {
+            var novaObra = new Obra
+            {
+                NomeCliente = dto.NomeCliente,
+                NomeObra = dto.NomeObra,
+                LocalObra = dto.LocalObra,
+                PrazoEntrega = dto.PrazoEntrega
+            };
 
-        await _db.SaveChangesAsync();
+            _context.Obras.Add(novaObra);
+            await _context.SaveChangesAsync();
 
-        return CreatedAtAction(
-            nameof(Buscar),
-            new { id = obra.Id },
-            obra
-        );
-    }
-
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> Atualizar(
-        int id,
-        ObraDto dto)
-    {
-        var obra = await _db.Obras.FindAsync(id);
-
-        if (obra == null)
-            return NotFound();
-
-        obra.NomeCliente = dto.NomeCliente.Trim();
-        obra.NomeObra = dto.NomeObra.Trim();
-        obra.Local = dto.Local.Trim();
-        obra.PrazoEntrega = dto.PrazoEntrega.Date;
-
-        await _db.SaveChangesAsync();
-
-        return NoContent();
-    }
-
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Excluir(int id)
-    {
-        var obra = await _db.Obras.FindAsync(id);
-
-        if (obra == null)
-            return NotFound();
-
-        _db.Obras.Remove(obra);
-
-        await _db.SaveChangesAsync();
-
-        return NoContent();
+            return CreatedAtAction(nameof(ListarObras), new { id = novaObra.Id }, novaObra);
+        }
     }
 }

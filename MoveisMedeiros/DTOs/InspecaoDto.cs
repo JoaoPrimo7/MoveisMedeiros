@@ -1,10 +1,12 @@
-﻿using MoveisMedeiros.DTOs;
-
-namespace MoveisMedeiros.Api.DTOs;
-
-public class InspecaoDto
+﻿namespace MoveisMedeiros.DTOs
 {
-    public int ObraId { get; set; }
-    public string Observacoes { get; set; }
-    public List<ItemInspecaoDto> Itens { get; set; }
+    public class InspecaoDto
+    {
+        public int ObraId { get; set; }
+        public string Montagem { get; set; } = "Conforme";
+        public string Acabamento { get; set; } = "Conforme";
+        public string Ferragens { get; set; } = "Conforme";
+        public string Limpeza { get; set; } = "Conforme";
+        public string? Observacoes { get; set; }
+    }
 }

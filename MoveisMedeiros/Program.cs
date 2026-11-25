@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using MoveisMedeiros.Api.Data;
+using MoveisMedeiros.Data;
+              
 
 var builder = WebApplication.CreateBuilder(args);
 
